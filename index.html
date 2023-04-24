@@ -32,6 +32,8 @@
 
     .cell.grey {
       background-color: grey;
+
+      animation: bump 250ms ease-in-out;
     }
 
     .cell.yellow {
@@ -46,12 +48,23 @@
       background-color: orange;
     }
 
+    @keyframes bump {
+      0% {
+        transform: translateY(5%);
+      }
+
+      100% {
+        transform: translateY(0);
+      }
+    }
+
+
     /* 
     TODO: 
     
-    - [ ] can we give blocks that stop moving a "bump" animation? e.g. it moves past it's
+    - [x] can we give blocks that stop moving a "bump" animation? e.g. it moves past it's
           ending place ever so slightly, then rebounds back into place
-    - [ ] keep score
+    - [x] keep score
     - [ ] show upcoming piece
     - [x] make down arrow instantly drop piece, but allow for quick movement
           before the piece locks in place
@@ -633,9 +646,6 @@
     };
 
     const Board = props => {
-      // TODO: eventually remove the onClick handler, as this'll have keyboard
-      // or touch-based controller
-
       // TODO: move this to be accessible somewhere else?
       const colorMap = {
         0: 'grey',
@@ -651,16 +661,14 @@
       return html`<section class="board">
                     ${props.cells.map((value, index) => html`
                         <${Cell} color=${colorMap[value]}
-                                 index=${index}
-                                 onClick=${props.onClick} />
+                                 index=${index} />
                     `)}
                 </section>`;
     };
 
     const Cell = props => {
       return html`<div class="cell ${props.color}"
-                       data-index=${props.index}
-                       onClick=${props.onClick} />`;
+                       data-index=${props.index} />`;
     };
 
     render(html`<${Game} />`, document.body);
