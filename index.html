@@ -395,24 +395,6 @@
 
         // DEBUG
         this.dumpState()
-
-        // TODO: rotate piece
-        // how the heck to do this? similar to moving piece downwards,
-        // calculate the new index positions, verify that they don't intersect
-        // any stopped blocks, then delete the old and place the new
-
-        // TODO: determine which cell to rotate the whole block around; how to store
-        // that cell
-
-        // can we do something like add the column value plus an offset?
-        // e.g. if a cell is 1 above the pivot, it needs to move: + colCount + 1
-        // if a cell is 1 to the right, it needs to move: + colCount - 1
-        // if cell is below, it needs to move: - colCount - 1
-        // if cell is left, it needs to move: - colCount + 1
-        // in these cases, the +/- 1 is the distance from the pivot
-
-        // OR store the type of block along with the index
-        // functions to determine the new 
       }
 
       dumpState() {
@@ -477,35 +459,34 @@
       // the end of the loop
       clearRows(cells) {
         // used for a scoring multiplier
-        let clearedRowCount = 0;
+        let clearCount = 0;
 
-        for (let row = 0; row < this.rowCount; row += 1) {
+        for (let y = 0; y < this.rows; y += 1) {
+          // innocent until proven guilty
           let clear = true;
 
-          for (let col = 0; col < this.columnCount; col += 1) {
-            let index = row * this.columnCount + col;
-
-            // if any cell in the row is empty, we can skip and move to the next
-            if (cells[index] === null) {
+          for (let x = 0; x < this.columns; x += 1) {
+            // if any cell in the row is empty, there's no line to clear
+            // move on to the next row
+            if (cells[x][y] === EMPTY) {
               clear = false;
               break;
             }
           }
 
           if (clear === true) {
-            clearedRowCount += 1;
+            clearCount += 1;
+            console.log(`line ${y} cleared!`);
 
-            const rowStartIndex = row * this.columnCount;
-            let emptyRow = cells.splice(rowStartIndex, this.columnCount);
-
-            // push new blank cells on the top of the state array
-            for (let col = 0; col < this.columnCount; col += 1) {
-              cells.unshift(null);
+            // Remove the filled line, and "push" the entire grid downwards
+            for (let x = 0; x < this.columns; x += 1) {
+              cells[x].splice(y, 1);
+              cells[x].unshift(EMPTY);
             }
           }
         }
 
-        switch (clearedRowCount) {
+        switch (clearCount) {
           case 1:
             this.score += 100;
             break;
