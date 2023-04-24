@@ -35,7 +35,7 @@
     }
 
     .cell.yellow {
-      background-color: yellow;
+      background-color: gold;
     }
 
     .cell.purple {
@@ -46,10 +46,18 @@
       background-color: orange;
     }
 
-    /* TODO: can we add css transitions that "slide" the background from top to bottom,
-    to give the illusion of smooth animation?
-    TODO: can we give blocks that stop moving a "bump" animation? e.g. it moves past it's
-    ending place ever so slightly, then rebounds back into place;  */
+    /* 
+    TODO: 
+    
+    - [ ] can we give blocks that stop moving a "bump" animation? e.g. it moves past it's
+          ending place ever so slightly, then rebounds back into place
+    - [ ] keep score
+    - [ ] show upcoming piece
+    - [ ] make down arrow instantly drop piece, but allow for quick movement
+          before the piece locks in place
+    - [ ] remove Preact
+    - [ ] Fix check to make sure pieces don't move off screen left/right when rotating
+    */
 
   </style>
   <script type="module">
@@ -261,10 +269,49 @@
             }
             break;
           case 'L':
-            // TODO
+            // * * *
+            // *
             break;
           case 'J':
-            // TODO
+            if (this.movingPiece.rotation === 0) {
+              // * * *
+              //     *
+              return [
+                centerIndex,
+                centerIndex - 1,
+                centerIndex + 1,
+                centerIndex + this.columnCount + 1
+              ];
+            } else if (this.movingPiece.rotation === 90) {
+              //   *
+              //   *
+              // * *
+              return [
+                centerIndex,
+                centerIndex - this.columnCount,
+                centerIndex + this.columnCount,
+                centerIndex + this.columnCount - 1
+              ];
+            } else if (this.movingPiece.rotation === 180) {
+              // *
+              // * * *
+              return [
+                centerIndex,
+                centerIndex - this.columnCount - 1,
+                centerIndex - 1,
+                centerIndex + 1
+              ];
+            } else {
+              // * *
+              // *
+              // *
+              return [
+                centerIndex,
+                centerIndex - this.columnCount,
+                centerIndex - this.columnCount + 1,
+                centerIndex + this.columnCount
+              ];
+            }
             break;
           case 'I':
             if (this.movingPiece.rotation % 180 === 0) {
@@ -381,7 +428,7 @@
         // TODO: should this be hard-coded?
         const centerIndex = 15;
 
-        const shapes = ['O', 'S', 'Z', 'T', /*'L', 'J',*/ 'I'];
+        const shapes = ['O', 'S', 'Z', 'T', /*'L', */'J', 'I'];
 
         let shapeType = shapes[Math.floor(Math.random() * shapes.length)]
 
