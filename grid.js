@@ -69,6 +69,7 @@ class Grid {
         return grid.map(row => row.fill(value));
     }
 
+    // helper method to get a random (x,y) point within grid bounds
     randomPoint() {
         return {
             x: Math.floor(Math.random() * this.columns),

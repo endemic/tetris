@@ -138,21 +138,36 @@ class Game extends Grid {
         let newDisplayState = this.displayStateCopy();
 
         // store new positions of block
-        const newPositions = this.calcRotate(direction);
+        let newPositions = this.calcRotate(direction);
+
+        // if piece rotates "out of bounds", move it back in
+        // use the accumulator to store the value to "push" the x value of each position
+        let offset = newPositions.reduce((accumulator, position) => {
+            const maxWidth = this.columns - 1;
+
+            if (position.x < 0 && position.x < accumulator) {
+                return position.x;
+            }
+
+            if (position.x > maxWidth && (position.x - maxWidth) > accumulator) {
+                return position.x - maxWidth;
+            }
+
+            return accumulator;
+        }, 0); // offset's initial value is 0
+
+        if (offset !== 0) {
+            newPositions = newPositions.map(({ x, y }) => {
+                return { x: x - offset, y: y };
+            })
+        }
 
         // delete old positions
         this.movingPiece.position.forEach(({ x: x, y: y }) => { newDisplayState[x][y] = EMPTY; });
 
         // check validity of new position
         for (let i = 0; i < 4; i += 1) {
-            const currentPoint = this.movingPiece.position[i];
             const newPosition = newPositions[i];
-
-            // don't allow any blocks to move past the edge of the grid
-            // TODO: allow blocks to "push" themselves away from edges when rotating
-            if (newPosition.x < 0 || newPosition.x >= this.columns) {
-                return;
-            }
 
             // don't allow moving into any occupied spaces
             if (newDisplayState[newPosition.x][newPosition.y] !== EMPTY) {
