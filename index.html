@@ -77,34 +77,15 @@
 
         // bind context variable to the current object
         this.update = this.update.bind(this);
-        this.onClick = this.onClick.bind(this);
         this.onKeyDown = this.onKeyDown.bind(this);
 
         // bind global keyboard handler
         window.addEventListener('keydown', this.onKeyDown);
 
-        // update loop every second
+        // update loop
         this.interval = setInterval(this.update, 100);
-      }
-
-      onClick(event) {
-        return;
-
-        let cells = [...this.state.cells];  // shallow clone
-        let clickedIndex = parseInt(event.target.dataset['index'], 10);
-        console.log(`clicked ${clickedIndex}`);
-
-        if (cells[clickedIndex] !== null) {
-          // don't do anything if the cell is filled
-          return;
-        }
-
-        cells[clickedIndex] = {
-          moving: true,
-          color: 'red'
-        }
-
-        this.setState({ cells });
+        this.previousTime = performance.now();
+        this.updateSpeedInMs = 500;
       }
 
       ArrowLeft() {
@@ -116,11 +97,199 @@
       }
 
       ArrowUp() {
-        console.log('up arrow pressed; TODO something?');
+        this.rotate(1);
       }
 
       ArrowDown() {
-        console.log('down arrow pressed; TODO something?');
+        // toggle update speed between 100ms and 500 ms
+        // if user taps the down arrow
+        // TODO: eventually toggle this based on keydown/keyup
+        this.updateSpeedInMs = this.updateSpeedInMs === 500 ? 100 : 500;
+        console.log(this.updateSpeedInMs)
+      }
+
+      rotate(direction) {
+        let cells = [...this.state.cells];  // shallow clone
+
+        // store new positions of block
+        const newPositions = this.calcRotate(direction);
+
+        // TODO: extract this
+        const calcRow = index => Math.floor(index / this.columnCount);
+
+        // delete old positions
+        this.movingPiece.indices.forEach(i => { cells[i] = null; });
+
+        // check validity of new position
+        for (let i = 0; i < 4; i += 1) {
+          const currentPosition = this.movingPiece.indices[i];
+          const newPosition = newPositions[i];
+
+          // don't allow movement past the edge of the screen
+          // e.g. if any of the new indices are in a different row
+          // TODO: fix this for rotation
+          // if (calcRow(currentPosition) !== calcRow(newPosition)) {
+          //   console.log(`canceling rotation; trying to move off edge of screen`);
+          //   return;
+          // }
+
+          // don't allow moving into any occupied spaces
+          if (cells[newPosition] !== null) {
+            console.log(`canceling rotation; trying to move in an occupied space`);
+            return;
+          }
+        }
+
+        // if we've made it here, it means the new move is valid
+
+        // put new blocks in place
+        newPositions.forEach(i => { cells[i] = this.movingPiece.color; })
+
+        // save references to the new indexes of the piece
+        this.movingPiece.indices = newPositions;
+
+        // update state
+        this.setState({ cells });
+      }
+
+      calcRotate(direction) {
+
+        // TODO: refactor this garbage
+        this.movingPiece.rotation += 90 * direction;
+        if (this.movingPiece.rotation === 360) {
+          this.movingPiece.rotation = 0;
+        }
+
+        let centerIndex = this.movingPiece.indices[0];
+
+        switch (this.movingPiece.type) {
+          case 'T':
+            if (this.movingPiece.rotation === 0) {
+              // * * *
+              //   *
+              return [
+                centerIndex,
+                centerIndex - 1,
+                centerIndex + 1,
+                centerIndex + this.columnCount
+              ];
+            } else if (this.movingPiece.rotation === 90) {
+              //   *
+              // * *
+              //   *
+              return [
+                centerIndex,
+                centerIndex - 1,
+                centerIndex - this.columnCount,
+                centerIndex + this.columnCount
+              ];
+            } else if (this.movingPiece.rotation === 180) {
+              //   *
+              // * * *
+              return [
+                centerIndex,
+                centerIndex - 1,
+                centerIndex + 1,
+                centerIndex - this.columnCount
+              ];
+            } else if (this.movingPiece.rotation === 270) {
+              //   *
+              //   * *
+              //   *
+              return [
+                centerIndex,
+                centerIndex + 1,
+                centerIndex - this.columnCount,
+                centerIndex + this.columnCount
+              ];
+            }
+            break;
+
+          case 'O':
+            // no-op
+            return [
+              centerIndex,
+              centerIndex + 1,
+              centerIndex + this.columnCount,
+              centerIndex + this.columnCount + 1
+            ];
+            break;
+          case 'S':
+            // this condition matches 0 and 180
+            if (this.movingPiece.rotation % 180 === 0) {
+              //   * *
+              // * *
+              return [
+                centerIndex,
+                centerIndex + 1,
+                centerIndex + this.columnCount,
+                centerIndex + this.columnCount - 1
+              ];
+            } else {
+              // *
+              // * *
+              //   *
+              return [
+                centerIndex,
+                centerIndex - this.columnCount,
+                centerIndex + 1,
+                centerIndex + this.columnCount + 1
+              ];
+            }
+            break;
+          case 'Z':
+            // this condition matches 0 and 180
+            if (this.movingPiece.rotation % 180 === 0) {
+              // * *
+              //   * *
+              return [
+                centerIndex,
+                centerIndex - 1,
+                centerIndex + this.columnCount,
+                centerIndex + this.columnCount + 1
+              ];
+            } else {
+              //   *
+              // * *
+              // *
+              return [
+                centerIndex,
+                centerIndex - this.columnCount,
+                centerIndex - 1,
+                centerIndex + this.columnCount - 1
+              ];
+            }
+            break;
+          case 'L':
+            // TODO
+            break;
+          case 'J':
+            // TODO
+            break;
+          case 'I':
+            if (this.movingPiece.rotation % 180 === 0) {
+              // * * * *
+              return [
+                centerIndex,
+                centerIndex - 1,
+                centerIndex + 1,
+                centerIndex + 2
+              ];
+            } else {
+              // *
+              // *
+              // *
+              // *
+              return [
+                centerIndex,
+                centerIndex - this.columnCount,
+                centerIndex + this.columnCount,
+                centerIndex + this.columnCount * 2
+              ];
+            }
+
+            break;
+        }
       }
 
       // direction is +1 or -1
@@ -128,21 +297,17 @@
         let cells = [...this.state.cells];  // shallow clone
 
         // store new positions of block
-        const newPositions = this.movingPiece.map(i => i + direction);
+        const newPositions = this.movingPiece.indices.map(i => i + direction);
 
         // TODO: extract this
         const calcRow = index => Math.floor(index / this.columnCount);
 
-        // persist the color of the piece
-        // TODO: rename `movingPiece` to `movingPieceIndexes` or similar
-        const color = cells[this.movingPiece[0]];
-
         // delete old positions
-        this.movingPiece.forEach(i => { cells[i] = null; })
+        this.movingPiece.indices.forEach(i => { cells[i] = null; })
 
         // check validity of new position
         for (let i = 0; i < 4; i += 1) {
-          const currentPosition = this.movingPiece[i];
+          const currentPosition = this.movingPiece.indices[i];
           const newPosition = newPositions[i];
 
           // don't allow movement past the edge of the screen
@@ -160,10 +325,10 @@
         // if we've made it here, it means the new move is valid
 
         // put new blocks in place
-        newPositions.forEach(i => { cells[i] = color; })
+        newPositions.forEach(i => { cells[i] = this.movingPiece.color; })
 
         // save references to the new indexes of the piece
-        this.movingPiece = newPositions;
+        this.movingPiece.indices = newPositions;
 
         // update state
         this.setState({ cells });
@@ -216,94 +381,44 @@
         // TODO: should this be hard-coded?
         const centerIndex = 15;
 
-        const shapes = {
-          //  *
-          // **
-          //  *
-          0: [
-            centerIndex,
-            centerIndex - 1,
-            centerIndex - this.columnCount,
-            centerIndex + this.columnCount
-          ],
+        const shapes = ['O', 'S', 'Z', 'T', /*'L', 'J',*/ 'I'];
 
-          // **
-          // **
-          1: [
-            centerIndex,
-            centerIndex + 1,
-            centerIndex + this.columnCount,
-            centerIndex + this.columnCount + 1
-          ],
+        let shapeType = shapes[Math.floor(Math.random() * shapes.length)]
 
-          // **
-          //  **
-          2: [
-            centerIndex,
-            centerIndex - 1,
-            centerIndex + this.columnCount,
-            centerIndex + this.columnCount + 1
-          ],
+        let color = Math.floor(Math.random() * 6) + 1;
 
-          //  **
-          // **
-          3: [
-            centerIndex,
-            centerIndex + 1,
-            centerIndex + this.columnCount,
-            centerIndex + this.columnCount - 1
-          ],
-
-          // *
-          // *
-          // **
-          4: [
-            centerIndex,
-            centerIndex - this.columnCount,
-            centerIndex + this.columnCount,
-            centerIndex + this.columnCount + 1
-          ],
-
-          //  *
-          //  *
-          // **
-          5: [
-            centerIndex,
-            centerIndex - this.columnCount,
-            centerIndex + this.columnCount,
-            centerIndex + this.columnCount - 1
-          ],
-
-          // *
-          // *
-          // *
-          // *
-          6: [
-            centerIndex,
-            centerIndex - this.columnCount,
-            centerIndex + this.columnCount,
-            centerIndex + this.columnCount * 2
-          ]
+        // TODO: `calcRotate` inspects state of the piece;
+        // change to accept args instead
+        this.movingPiece = {
+          rotation: 270,
+          indices: [centerIndex],
+          type: shapeType
         };
 
-        let randomShape = shapes[Math.floor(Math.random() * 7)]
-        let randomColor = Math.floor(Math.random() * 6) + 1;
+        let shapeIndices = this.calcRotate(1);
 
+        // `cantPlace` means that there's garbage where the piece should
+        // spawn, and basically you lose the game
         let cantPlace = false;
 
-        randomShape.forEach(i => {
+        shapeIndices.forEach(i => {
           if (cells[i] !== null) {
             cantPlace = true;
           }
 
-          cells[i] = randomColor;
+          cells[i] = color;
         });
 
         if (cantPlace) {
           return false;
         }
 
-        return randomShape;
+        return {
+          indices: shapeIndices,
+          type: shapeType,
+          rotation: 0,
+          color: color
+        };
       }
 
       clearRows(cells) {
@@ -339,27 +454,28 @@
       }
 
       update() {
+        const now = performance.now();
+
+        if (now - this.previousTime < this.updateSpeedInMs) {
+          return;
+        }
+
+        this.previousTime = now;
+
         const cells = [...this.state.cells]; // shallow clone
 
         // store new positions of moving block
-        const newPositions = this.movingPiece.map(i => i + this.columnCount);
-
-        // TODO: check for lose condition; perhaps if piece is spawned on top of
-        // an existing filled block
-
-        // persist the color of the piece
-        // TODO: rename `movingPiece` to `movingPieceIndexes` or similar
-        const color = cells[this.movingPiece[0]];
+        const newPositions = this.movingPiece.indices.map(i => i + this.columnCount);
 
         // delete old positions
-        this.movingPiece.forEach(i => { cells[i] = null; })
+        this.movingPiece.indices.forEach(i => { cells[i] = null; })
 
         // check validity of all new positions
         for (let i = 0; i < 4; i += 1) {
           // if block would move off the bottom, or would move DOWN into a non-empty square...
           if (newPositions[i] > cells.length - 1 || cells[newPositions[i]] !== null) {
             // mark all pieces of the moving block as "stopped"
-            this.movingPiece.forEach(i => cells[i] = 0);
+            this.movingPiece.indices.forEach(i => cells[i] = 0);
 
             // TODO: cells (passed by reference) is mutated
             this.clearRows(cells);
@@ -380,10 +496,10 @@
         }
 
         // put new blocks in place
-        newPositions.forEach(i => { cells[i] = color; })
+        newPositions.forEach(i => { cells[i] = this.movingPiece.color; })
 
         // save references to the new indexes of the piece
-        this.movingPiece = newPositions;
+        this.movingPiece.indices = newPositions;
 
         // update state
         this.setState({ cells });
