@@ -3,12 +3,18 @@
 
 <head>
   <link rel="stylesheet" href="stylesheets/main.css">
-  <script src="grid.js"></script>
-  <script src="tetris.js"></script>
+  <script src="scripts/grid.js"></script>
+  <script src="scripts/tetris.js"></script>
+
+  <title>Tetris!</title>
 </head>
 
 <body>
-  <section id="grid"></section>
+  <main>
+    <section id="grid"></section>
+    <section id="next"></section>
+    <section id="score"></section>
+  </main>
 
   <script>
     new Game();
