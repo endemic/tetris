@@ -53,7 +53,7 @@
           ending place ever so slightly, then rebounds back into place
     - [ ] keep score
     - [ ] show upcoming piece
-    - [ ] make down arrow instantly drop piece, but allow for quick movement
+    - [x] make down arrow instantly drop piece, but allow for quick movement
           before the piece locks in place
     - [ ] remove Preact
     - [ ] Fix check to make sure pieces don't move off screen left/right when rotating
@@ -83,15 +83,14 @@
         // set initial state
         this.state = { cells };
 
-        // bind context variable to the current object
-        this.update = this.update.bind(this);
-        this.onKeyDown = this.onKeyDown.bind(this);
+        this.score = 0;
 
-        // bind global keyboard handler
-        window.addEventListener('keydown', this.onKeyDown);
+        // bind global keyboard handlers
+        window.addEventListener('keydown', this.onKeyDown.bind(this));
+        window.addEventListener('keyup', this.onKeyUp.bind(this));
 
         // update loop
-        this.interval = setInterval(this.update, 100);
+        this.interval = setInterval(this.update.bind(this), 100);
         this.previousTime = performance.now();
         this.updateSpeedInMs = 500;
       }
@@ -109,11 +108,30 @@
       }
 
       ArrowDown() {
-        // toggle update speed between 100ms and 500 ms
-        // if user taps the down arrow
-        // TODO: eventually toggle this based on keydown/keyup
-        this.updateSpeedInMs = this.updateSpeedInMs === 500 ? 100 : 500;
-        console.log(this.updateSpeedInMs)
+        // Allow the game to update faster if the player holds the "down" key
+        // TODO: extract this magic number
+        this.updateSpeedInMs = 75;
+      }
+
+      onKeyDown(event) {
+        // If the `Game` component has a defined method that
+        // is equal to the name of the pressed key...
+        if (typeof this[event.key] === 'function') {
+          event.preventDefault();
+
+          // fire that method
+          this[event.key]();
+        }
+      }
+
+      // The only purpose of this handler is to slow piece speed
+      onKeyUp(event) {
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+
+          // TODO: extract this magic number
+          this.updateSpeedInMs = 500;
+        }
       }
 
       rotate(direction) {
@@ -173,7 +191,7 @@
         switch (this.movingPiece.type) {
           case 'T':
             if (this.movingPiece.rotation === 0) {
-              // * * *
+              // *[*]*
               //   *
               return [
                 centerIndex,
@@ -183,7 +201,7 @@
               ];
             } else if (this.movingPiece.rotation === 90) {
               //   *
-              // * *
+              // *[*]
               //   *
               return [
                 centerIndex,
@@ -193,7 +211,7 @@
               ];
             } else if (this.movingPiece.rotation === 180) {
               //   *
-              // * * *
+              // *[*]*
               return [
                 centerIndex,
                 centerIndex - 1,
@@ -202,7 +220,7 @@
               ];
             } else if (this.movingPiece.rotation === 270) {
               //   *
-              //   * *
+              //  [*]*
               //   *
               return [
                 centerIndex,
@@ -225,7 +243,7 @@
           case 'S':
             // this condition matches 0 and 180
             if (this.movingPiece.rotation % 180 === 0) {
-              //   * *
+              //  [*]*
               // * *
               return [
                 centerIndex,
@@ -234,8 +252,8 @@
                 centerIndex + this.columnCount - 1
               ];
             } else {
-              // *
-              // * *
+              //  *
+              // [*]*
               //   *
               return [
                 centerIndex,
@@ -248,7 +266,7 @@
           case 'Z':
             // this condition matches 0 and 180
             if (this.movingPiece.rotation % 180 === 0) {
-              // * *
+              // *[*]
               //   * *
               return [
                 centerIndex,
@@ -258,7 +276,7 @@
               ];
             } else {
               //   *
-              // * *
+              // *[*]
               // *
               return [
                 centerIndex,
@@ -269,12 +287,49 @@
             }
             break;
           case 'L':
-            // * * *
-            // *
+            if (this.movingPiece.rotation === 0) {
+              // *[*]*
+              // *
+              return [
+                centerIndex,
+                centerIndex - 1,
+                centerIndex + 1,
+                centerIndex + this.columnCount - 1
+              ];
+            } else if (this.movingPiece.rotation === 90) {
+              // *
+              //[*]
+              // * *
+              return [
+                centerIndex,
+                centerIndex - this.columnCount,
+                centerIndex + this.columnCount,
+                centerIndex + this.columnCount + 1
+              ];
+            } else if (this.movingPiece.rotation === 180) {
+              //     *
+              // *[*]*
+              return [
+                centerIndex,
+                centerIndex - this.columnCount + 1,
+                centerIndex - 1,
+                centerIndex + 1
+              ];
+            } else {
+              // * *
+              //  [*]
+              //   *
+              return [
+                centerIndex,
+                centerIndex - this.columnCount,
+                centerIndex - this.columnCount - 1,
+                centerIndex + this.columnCount
+              ];
+            }
             break;
           case 'J':
             if (this.movingPiece.rotation === 0) {
-              // * * *
+              // *[*]*
               //     *
               return [
                 centerIndex,
@@ -284,7 +339,7 @@
               ];
             } else if (this.movingPiece.rotation === 90) {
               //   *
-              //   *
+              //  [*]
               // * *
               return [
                 centerIndex,
@@ -294,7 +349,7 @@
               ];
             } else if (this.movingPiece.rotation === 180) {
               // *
-              // * * *
+              // *[*]*
               return [
                 centerIndex,
                 centerIndex - this.columnCount - 1,
@@ -302,9 +357,9 @@
                 centerIndex + 1
               ];
             } else {
-              // * *
-              // *
-              // *
+              //  * *
+              // [*]
+              //  *
               return [
                 centerIndex,
                 centerIndex - this.columnCount,
@@ -315,7 +370,7 @@
             break;
           case 'I':
             if (this.movingPiece.rotation % 180 === 0) {
-              // * * * *
+              // *[*]* *
               return [
                 centerIndex,
                 centerIndex - 1,
@@ -323,10 +378,10 @@
                 centerIndex + 2
               ];
             } else {
-              // *
-              // *
-              // *
-              // *
+              //  *
+              // [*]
+              //  *
+              //  *
               return [
                 centerIndex,
                 centerIndex - this.columnCount,
@@ -334,7 +389,6 @@
                 centerIndex + this.columnCount * 2
               ];
             }
-
             break;
         }
       }
@@ -412,23 +466,14 @@
         }
       }
 
-      onKeyDown(event) {
-        // If the `Game` component has a defined method that
-        // is equal to the name of the pressed key...
-        if (typeof this[event.key] === 'function') {
-          // fire that method
-          this[event.key]();
-        }
-      }
-
       // given a specific index to center the piece around,
       // populate `this.cells` with a tetrad, and return the
       // indices of the piece blocks
       createPiece(cells) {
-        // TODO: should this be hard-coded?
-        const centerIndex = 15;
+        // Place the new piece at the top of the screen, in the middle of the grid
+        const centerIndex = Math.floor(this.columnCount / 2);
 
-        const shapes = ['O', 'S', 'Z', 'T', /*'L', */'J', 'I'];
+        const shapes = ['O', 'S', 'Z', 'T', 'L', 'J', 'I'];
 
         let shapeType = shapes[Math.floor(Math.random() * shapes.length)]
 
@@ -468,11 +513,14 @@
         };
       }
 
+      // remove any row that is full of stopped blocks
+      // basically go through each row, and if every column cell is "filled"
+      // then the `clear` var remains true, which then triggers the clear at
+      // the end of the loop
       clearRows(cells) {
-        // remove any row that is full of stopped blocks
-        // basically go through each row, and if every column cell is "filled"
-        // then the `clear` var remains true, which then triggers the clear at
-        // the end of the loop
+        // used for a scoring multiplier
+        let clearedRowCount = 0;
+
         for (let row = 0; row < this.rowCount; row += 1) {
           let clear = true;
 
@@ -487,7 +535,7 @@
           }
 
           if (clear === true) {
-            console.log(`clearing row ${row}`);
+            clearedRowCount += 1;
 
             const rowStartIndex = row * this.columnCount;
             let emptyRow = cells.splice(rowStartIndex, this.columnCount);
@@ -498,6 +546,26 @@
             }
           }
         }
+
+        switch (clearedRowCount) {
+          case 1:
+            this.score += 100;
+            break;
+          case 2:
+            this.score += 300;
+            break;
+          case 3:
+            this.score += 500;
+            break;
+          case 4:
+            this.score += 800;
+            break;
+          default:
+            // no points for u!
+            break;
+        }
+
+        console.log(`Score: ${this.score}`);
       }
 
       update() {
