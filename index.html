@@ -57,26 +57,11 @@
 
         let cells = Array(this.rowCount * this.columnCount).fill(null);
 
+        // create initial piece
+        this.movingPiece = this.createPiece(cells);
+
+        // set initial state
         this.state = { cells };
-
-        // console.log(this.state.cells);
-
-        this.blockProto = { moving: true, color: 'green' };
-
-        // initialize first block
-        // cells[3] = structuredClone(this.blockProto);
-        // cells[12] = { moving: true, color: 'green' };
-        // cells[13] = { moving: true, color: 'green' };
-        // cells[23] = { moving: true, color: 'green' };
-
-        // 
-        this.movingPiece = this.createPiece(15);
-
-        // TODO: holds references to the cells that represent the currently moving piece
-        // this.movingPiece = [3, 12, 13, 23];
-        // this.movingPiece = [3];
-
-        // this.setState({ cells });
 
         // bind context variable to the current object
         this.update = this.update.bind(this);
@@ -87,7 +72,7 @@
         window.addEventListener('keydown', this.onKeyDown);
 
         // update loop every second
-        this.interval = setInterval(this.update, 500);
+        this.interval = setInterval(this.update, 100);
       }
 
       onClick(event) {
@@ -114,16 +99,37 @@
         let cells = [...this.state.cells];  // shallow clone
 
         // store new positions of block
+        // TODO: refactor: this line is only difference between moving left vs. right
         const newPositions = this.movingPiece.map(i => i - 1);
-        console.log(newPositions)
+
+        // TODO: extract this
+        const calcRow = index => Math.floor(index / this.columnCount);
 
         // persist the color of the piece
         // TODO: rename `movingPiece` to `movingPieceIndexes` or similar
         const color = cells[this.movingPiece[0]];
-        console.log(`saved color: ${color}`);
 
         // delete old positions
         this.movingPiece.forEach(i => { cells[i] = null; })
+
+        // check validity of new position
+        for (let i = 0; i < 4; i += 1) {
+          const currentPosition = this.movingPiece[i];
+          const newPosition = newPositions[i];
+
+          // don't allow movement past the edge of the screen
+          // e.g. if any of the new indices are in a different row
+          if (calcRow(currentPosition) !== calcRow(newPosition)) {
+            return;
+          }
+
+          // don't allow moving into any occupied spaces
+          if (cells[newPosition] !== null) {
+            return;
+          }
+        }
+
+        // if we've made it here, it means the new move is valid
 
         // put new blocks in place
         newPositions.forEach(i => { cells[i] = color; })
@@ -131,45 +137,52 @@
         // save references to the new indexes of the piece
         this.movingPiece = newPositions;
 
-        // TODO: need to copy all cells to the new positions, then remove the old positions
-        // problem: if the old position is still filled, this process would delete it
-        // do we have to represent blocks as objects? could use 0-9, 0 being stopped blocks
-        // and 1-9 being different colors
-        // for (let i = 0; i < this.movingPiece.length; i += 1) {
-        //   let index = this.movingPiece[i];
-        //   let val = cells[index];
-        //   console.log(`cell index to move: ${index}`);
-
-        //   // move the cell state one to the left
-        //   cells[index - 1] = val;
-        //   cells[index] = null;
-
-        //   // make the piece index reference reflect the new cell state
-        //   this.movingPiece[i] = index - 1;
-        //   console.log(`movingPiece[${i}]: ${this.movingPiece[i]}`);
-        // }
-
         this.setState({ cells });
       }
 
       ArrowRight() {
         let cells = [...this.state.cells];  // shallow clone
 
-        // increment each index by one
-        for (let i = 0; i < this.movingPiece.length; i += 1) {
-          let index = this.movingPiece[i];
-          let val = cells[index];
-          console.log(`cell index to move: ${index}`);
+        // store new positions of block
+        // TODO: refactor: this line is only difference between moving left vs. right
+        const newPositions = this.movingPiece.map(i => i + 1);
 
-          // move the cell state one to the left
-          cells[index + 1] = val;
-          cells[index] = null;
+        // TODO: extract this
+        const calcRow = index => Math.floor(index / this.columnCount);
 
-          // make the piece index reference reflect the new cell state
-          this.movingPiece[i] = index + 1;
-          console.log(`movingPiece[${i}]: ${this.movingPiece[i]}`);
+        // persist the color of the piece
+        // TODO: rename `movingPiece` to `movingPieceIndexes` or similar
+        const color = cells[this.movingPiece[0]];
+
+        // delete old positions
+        this.movingPiece.forEach(i => { cells[i] = null; })
+
+        // check validity of new position
+        for (let i = 0; i < 4; i += 1) {
+          const currentPosition = this.movingPiece[i];
+          const newPosition = newPositions[i];
+
+          // don't allow movement past the edge of the screen
+          // e.g. if any of the new indices are in a different row
+          if (calcRow(currentPosition) !== calcRow(newPosition)) {
+            return;
+          }
+
+          // don't allow moving into any occupied spaces
+          if (cells[newPosition] !== null) {
+            return;
+          }
         }
 
+        // if we've made it here, it means the new move is valid
+
+        // put new blocks in place
+        newPositions.forEach(i => { cells[i] = color; })
+
+        // save references to the new indexes of the piece
+        this.movingPiece = newPositions;
+
+        // update state
         this.setState({ cells });
       }
 
@@ -179,6 +192,25 @@
 
       ArrowDown() {
         console.log('down arrow pressed; TODO something?');
+      }
+
+      ' '() {
+        console.log('lol space');
+
+        // TODO: rotate piece
+        // how the heck to do this? similar to moving piece downwards,
+        // calculate the new index positions, verify that they don't intersect
+        // any stopped blocks, then delete the old and place the new
+
+        // TODO: determine which cell to rotate the whole block around; how to store
+        // that cell
+
+        // can we do something like add the column value plus an offset?
+        // e.g. if a cell is 1 above the pivot, it needs to move: + colCount + 1
+        // if a cell is 1 to the right, it needs to move: + colCount - 1
+        // if cell is below, it needs to move: - colCount - 1
+        // if cell is left, it needs to move: - colCount + 1
+        // in these cases, the +/- 1 is the distance from the pivot
       }
 
       onKeyDown(event) {
@@ -193,8 +225,9 @@
       // given a specific index to center the piece around,
       // populate `this.cells` with a tetrad, and return the
       // indices of the piece blocks
-      createPiece(centerIndex) {
-        let cells = [...this.state.cells];  // shallow clone
+      createPiece(cells) {
+        // TODO: should this be hard-coded
+        const centerIndex = 15;
 
         // TODO: dynamically populate this list based on the type of tetrad we want
 
@@ -208,58 +241,14 @@
           centerIndex + this.columnCount
         ];
 
-        console.log(indices)
-
         indices.forEach(i => {
           cells[i] = 1; // red
         });
 
-        this.setState({ cells });
-
         return indices;
       }
 
-      update() {
-        return;
-        // move each dot downwards
-        const cells = this.state.cells;
-
-        for (let index = cells.length - 1; index >= 0; index -= 1) {
-          if (cells[index] === null) {
-            // skip the update if the current cell is empty
-            continue;
-          }
-
-          let newIndex = index + this.columnCount;
-
-          // 600 total cells
-          if (newIndex > cells.length - 1 || cells[newIndex] !== null) {
-            // stop moving if next is already filled
-            // or if it would move off the bottom of the grid
-            cells[index].moving = false;
-            cells[index].color = 'grey';
-            continue;
-          }
-
-          // console.log(`moving ${index} to ${newIndex}`);
-          cells[newIndex] = cells[index];
-          cells[index] = null;
-
-          // move references to moving squares
-          // TODO: this is super jank
-          // is there a better way to reference a moving piece?
-
-          // TODO: the above code iterates through every single cell
-          // in a real Tetris game, you only control a single piece, and
-          // know the position of it, so you only have to update a max of 4
-          // cells per cycle
-
-          const idx = this.movingPiece.indexOf(index);
-          if (idx !== -1) {
-            this.movingPiece[idx] = newIndex;
-          }
-        }
-
+      clearRows(cells) {
         // remove any row that has all stopped blocks
         // could optimize by doing this in the overall movement loop
         for (let row = 0; row < this.rowCount; row += 1) {
@@ -268,9 +257,8 @@
           for (let col = 0; col < this.columnCount; col += 1) {
             let index = row * this.columnCount + col;
 
-            if (cells[index] === null || cells[index].moving === true) {
-              // one of the spots in a row is unfilled or still moving;
-              // so don't need to check the rest of the row
+            // if any cell in the row is empty, we can skip and move to the next
+            if (cells[index] === null) {
               clear = false;
               break;
             }
@@ -283,11 +271,57 @@
 
               cells[index] = null;
             }
-          }
 
-          // update state
-          this.setState({ cells });
+            // TODO: move all higher stopped pieces down
+          }
         }
+      }
+
+      update() {
+        // return;
+
+        const cells = [...this.state.cells]; // shallow clone
+
+        // store new positions of moving block
+        const newPositions = this.movingPiece.map(i => i + this.columnCount);
+
+        // persist the color of the piece
+        // TODO: rename `movingPiece` to `movingPieceIndexes` or similar
+        const color = cells[this.movingPiece[0]];
+
+        // delete old positions
+        this.movingPiece.forEach(i => { cells[i] = null; })
+
+        // console.log(`new positions`, newPositions);
+
+        // check validity of all new positions
+        for (let i = 0; i < 4; i += 1) {
+          // if block would move off the bottom, or would move DOWN into a non-empty square...
+          if (newPositions[i] > cells.length - 1 || cells[newPositions[i]] !== null) {
+            // mark all pieces of the moving block as "stopped"
+            this.movingPiece.forEach(i => cells[i] = 0);
+
+            // TODO: cells is mutated
+            this.movingPiece = this.createPiece(cells);
+
+            // allow for row removal here
+            this.clearRows(cells);
+
+            // update state
+            this.setState({ cells });
+
+            return;
+          }
+        }
+
+        // put new blocks in place
+        newPositions.forEach(i => { cells[i] = color; })
+
+        // save references to the new indexes of the piece
+        this.movingPiece = newPositions;
+
+        // update state
+        this.setState({ cells });
       }
 
       render() {
@@ -309,7 +343,8 @@
         3: 'yellow',
         4: 'green',
         5: 'purple',
-        6: 'orange'
+        6: 'orange',
+        null: ''
       };
 
       return html`<section class="board">
