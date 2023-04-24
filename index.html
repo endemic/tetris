@@ -189,6 +189,9 @@
         // if cell is below, it needs to move: - colCount - 1
         // if cell is left, it needs to move: - colCount + 1
         // in these cases, the +/- 1 is the distance from the pivot
+
+        // OR store the type of block along with the index
+        // functions to determine the new 
       }
 
       dumpState() {
@@ -286,9 +289,19 @@
         let randomShape = shapes[Math.floor(Math.random() * 7)]
         let randomColor = Math.floor(Math.random() * 6) + 1;
 
+        let cantPlace = false;
+
         randomShape.forEach(i => {
+          if (cells[i] !== null) {
+            cantPlace = true;
+          }
+
           cells[i] = randomColor;
         });
+
+        if (cantPlace) {
+          return false;
+        }
 
         return randomShape;
       }
@@ -321,10 +334,6 @@
             for (let col = 0; col < this.columnCount; col += 1) {
               cells.unshift(null);
             }
-
-            // decrement the row counter, as we've mutated the array while looping over it
-            // TODO: is this necessary?
-            row -= 1;
           }
         }
       }
@@ -361,6 +370,11 @@
             // update state
             this.setState({ cells });
 
+            // if piece can't be placed, game over!
+            if (this.movingPiece === false) {
+              this.gameOver();
+            }
+
             return;
           }
         }
@@ -373,6 +387,11 @@
 
         // update state
         this.setState({ cells });
+      }
+
+      gameOver() {
+        clearInterval(this.interval);
+        console.log('u lose!');
       }
 
       render() {
