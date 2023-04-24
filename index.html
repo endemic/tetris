@@ -96,56 +96,27 @@
       }
 
       ArrowLeft() {
-        let cells = [...this.state.cells];  // shallow clone
-
-        // store new positions of block
-        // TODO: refactor: this line is only difference between moving left vs. right
-        const newPositions = this.movingPiece.map(i => i - 1);
-
-        // TODO: extract this
-        const calcRow = index => Math.floor(index / this.columnCount);
-
-        // persist the color of the piece
-        // TODO: rename `movingPiece` to `movingPieceIndexes` or similar
-        const color = cells[this.movingPiece[0]];
-
-        // delete old positions
-        this.movingPiece.forEach(i => { cells[i] = null; })
-
-        // check validity of new position
-        for (let i = 0; i < 4; i += 1) {
-          const currentPosition = this.movingPiece[i];
-          const newPosition = newPositions[i];
-
-          // don't allow movement past the edge of the screen
-          // e.g. if any of the new indices are in a different row
-          if (calcRow(currentPosition) !== calcRow(newPosition)) {
-            return;
-          }
-
-          // don't allow moving into any occupied spaces
-          if (cells[newPosition] !== null) {
-            return;
-          }
-        }
-
-        // if we've made it here, it means the new move is valid
-
-        // put new blocks in place
-        newPositions.forEach(i => { cells[i] = color; })
-
-        // save references to the new indexes of the piece
-        this.movingPiece = newPositions;
-
-        this.setState({ cells });
+        this.move(-1);
       }
 
       ArrowRight() {
+        this.move(1);
+      }
+
+      ArrowUp() {
+        console.log('up arrow pressed; TODO something?');
+      }
+
+      ArrowDown() {
+        console.log('down arrow pressed; TODO something?');
+      }
+
+      // direction is +1 or -1
+      move(direction) {
         let cells = [...this.state.cells];  // shallow clone
 
         // store new positions of block
-        // TODO: refactor: this line is only difference between moving left vs. right
-        const newPositions = this.movingPiece.map(i => i + 1);
+        const newPositions = this.movingPiece.map(i => i + direction);
 
         // TODO: extract this
         const calcRow = index => Math.floor(index / this.columnCount);
@@ -186,16 +157,11 @@
         this.setState({ cells });
       }
 
-      ArrowUp() {
-        console.log('up arrow pressed; TODO something?');
-      }
-
-      ArrowDown() {
-        console.log('down arrow pressed; TODO something?');
-      }
-
       ' '() {
-        console.log('lol space');
+        // console.log('lol space');
+
+        // DEBUG
+        this.dumpState()
 
         // TODO: rotate piece
         // how the heck to do this? similar to moving piece downwards,
@@ -211,6 +177,12 @@
         // if cell is below, it needs to move: - colCount - 1
         // if cell is left, it needs to move: - colCount + 1
         // in these cases, the +/- 1 is the distance from the pivot
+      }
+
+      dumpState() {
+        for (let row = 0; row < this.rowCount; row += 1) {
+          console.log(this.state.cells.slice(row * this.columnCount, row * this.columnCount + this.columnCount))
+        }
       }
 
       onKeyDown(event) {
@@ -249,8 +221,10 @@
       }
 
       clearRows(cells) {
-        // remove any row that has all stopped blocks
-        // could optimize by doing this in the overall movement loop
+        // remove any row that is full of stopped blocks
+        // basically go through each row, and if every column cell is "filled"
+        // then the `clear` var remains true, which then triggers the clear at
+        // the end of the loop
         for (let row = 0; row < this.rowCount; row += 1) {
           let clear = true;
 
@@ -265,14 +239,19 @@
           }
 
           if (clear === true) {
-            // blank out all the cells in the row
-            for (let col = 0; col < this.columnCount; col += 1) {
-              let index = row * this.columnCount + col;
+            console.log(`clearing row ${row}`);
 
-              cells[index] = null;
+            const rowStartIndex = row * this.columnCount;
+            let emptyRow = cells.splice(rowStartIndex, this.columnCount);
+
+            // push new blank cells on the top of the state array
+            for (let col = 0; col < this.columnCount; col += 1) {
+              cells.unshift(null);
             }
 
-            // TODO: move all higher stopped pieces down
+            // decrement the row counter, as we've mutated the array while looping over it
+            // TODO: is this necessary?
+            row -= 1;
           }
         }
       }
@@ -301,11 +280,11 @@
             // mark all pieces of the moving block as "stopped"
             this.movingPiece.forEach(i => cells[i] = 0);
 
-            // TODO: cells is mutated
-            this.movingPiece = this.createPiece(cells);
-
-            // allow for row removal here
+            // TODO: cells (passed by reference) is mutated
             this.clearRows(cells);
+
+            // TODO: cells (passed by reference) is mutated
+            this.movingPiece = this.createPiece(cells);
 
             // update state
             this.setState({ cells });
