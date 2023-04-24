@@ -1,13 +1,8 @@
 #grid {
-    display: grid;
-    aspect-ratio: 1.5;
-    width: 50%;
-    grid-template-rows: repeat(20, 10%);
-    grid-template-columns: repeat(10, 6.6%);
-    /* The repeat() notation accepts 2 arguments: the first represents the number of times the defined tracks should repeat, and the second is the track definition. */
+    width: 100%;
 }
 
-#grid>div {
+#grid div {
     border: 1px solid black;
     border-top: 0;
     border-left: 0;
@@ -51,5 +46,13 @@
 
     100% {
         transform: translateY(0);
+    }
+}
+
+/* desktop styles */
+@media (min-width: 768px) {
+    main {
+        margin: auto;
+        width: 75%;
     }
 }
