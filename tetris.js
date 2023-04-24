@@ -3,6 +3,7 @@ TODO:
  
 - [ ] display score
 - [ ] show upcoming piece
+- [ ] offline support (https://diveinto.html5doctor.com/offline.html)
 - [x] make down arrow instantly drop piece, but allow for quick movement
       before the piece locks in place
 - [ ] allow pieces to "bump" themselves away from sides when rotating
@@ -95,35 +96,42 @@ class Game extends Grid {
         }
     }
 
-    onTouchStart(e) {
+    onTouchStart(event) {
+        event.preventDefault();
+
         // store where the player first touched the screen
-        this.currentTouch = e.changedTouches[0];  // only care about the first touch
+        this.currentTouch = event.changedTouches[0];  // only care about the first touch
+
+        const clicked = {
+            x: parseInt(event.target.dataset.x, 10),
+            y: parseInt(event.target.dataset.y, 10)
+        };
+
+        const center = this.movingPiece.position[0];
+
+
+        // if touching the moving piece, then rotate
+        if (Math.abs(clicked.x - center.x) < 2 && Math.abs(clicked.y - center.y) < 2) {
+            this.rotate(1);
+        } else if (clicked.x < center.x) {
+            // if touching to the left, move to the left
+            this.ArrowLeft();
+        } else if (clicked.x > center.x) {
+            // if touching to the right, move to the right
+            this.ArrowRight()
+        }
     }
 
-    onTouchEnd(e) {
+    onTouchEnd(event) {
+        event.preventDefault();
+
         // store local ref to last touch
         const endTouch = e.changedTouches[0];
 
         let xDiff = endTouch.clientX - this.currentTouch.clientX;
         let yDiff = endTouch.clientY - this.currentTouch.clientY;
 
-        // horizontal touch direction was greater
-        if (Math.abs(xDiff) > Math.abs(yDiff)) {
-            // user moved their finger (mostly) right
-            if (xDiff > 0) {
-                this.ArrowRight();
-            } else {
-                this.ArrowLeft();
-            }
-            // vertical touch direction was greater
-        } else {
-            // user moved their finger (mostly) down
-            if (yDiff > 0) {
-                this.ArrowDown();
-            } else {
-                this.ArrowUp();
-            }
-        }
+        // if 
     }
 
     rotate(direction) {
