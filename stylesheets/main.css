@@ -1,0 +1,55 @@
+#grid {
+    display: grid;
+    aspect-ratio: 1.5;
+    width: 50%;
+    grid-template-rows: repeat(20, 10%);
+    grid-template-columns: repeat(10, 6.6%);
+    /* The repeat() notation accepts 2 arguments: the first represents the number of times the defined tracks should repeat, and the second is the track definition. */
+}
+
+#grid>div {
+    border: 1px solid black;
+    border-top: 0;
+    border-left: 0;
+    box-sizing: border-box;
+}
+
+.blue {
+    background-color: blue;
+}
+
+.green {
+    background-color: limegreen;
+}
+
+.red {
+    background-color: red;
+}
+
+.grey {
+    background-color: grey;
+
+    animation: bump 250ms ease-in-out;
+}
+
+.yellow {
+    background-color: gold;
+}
+
+.purple {
+    background-color: purple;
+}
+
+.orange {
+    background-color: orange;
+}
+
+@keyframes bump {
+    0% {
+        transform: translateY(5%);
+    }
+
+    100% {
+        transform: translateY(0);
+    }
+}

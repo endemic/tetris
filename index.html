@@ -1,64 +1,9 @@
 <html>
 
 <head>
-  <style>
-    .board {
-      display: grid;
-      aspect-ratio: 1.5;
-      width: 50%;
-      grid-template-rows: repeat(20, 10%);
-      grid-template-columns: repeat(10, 6.6%);
-      /* The repeat() notation accepts 2 arguments: the first represents the number of times the defined tracks should repeat, and the second is the track definition. */
-    }
-
-    .cell {
-      border: 1px solid black;
-      border-top: 0;
-      border-left: 0;
-      box-sizing: border-box;
-    }
-
-    .cell.blue {
-      background-color: blue;
-    }
-
-    .cell.green {
-      background-color: limegreen;
-    }
-
-    .cell.red {
-      background-color: red;
-    }
-
-    .cell.grey {
-      background-color: grey;
-
-      animation: bump 250ms ease-in-out;
-    }
-
-    .cell.yellow {
-      background-color: gold;
-    }
-
-    .cell.purple {
-      background-color: purple;
-    }
-
-    .cell.orange {
-      background-color: orange;
-    }
-
-    @keyframes bump {
-      0% {
-        transform: translateY(5%);
-      }
-
-      100% {
-        transform: translateY(0);
-      }
-    }
-
-
+  <link rel="stylesheet" href="stylesheets/main.css">
+  <script src="grid.js"></script>
+  <script type="module">
     /* 
     TODO: 
     
@@ -72,29 +17,33 @@
     - [ ] Fix check to make sure pieces don't move off screen left/right when rotating
     */
 
-  </style>
-  <script type="module">
-    import { h, Component, render } from 'https://unpkg.com/preact?module';
-    import htm from 'https://unpkg.com/htm?module';
+    const EMPTY = null;
 
-    // Initialize htm with Preact
-    const html = htm.bind(h);
+    class Game extends Grid {
+      cssClassMap = {
+        0: 'grey',
+        1: 'red',
+        2: 'blue',
+        3: 'yellow',
+        4: 'green',
+        5: 'purple',
+        6: 'orange',
+        null: ''
+      }
 
-    class Game extends Component {
+      constructor() {
+        let rows = 20;
+        let columns = 10;
 
-      constructor(props) {
-        super(props);
+        super(rows, columns);
 
-        this.rowCount = 20;
-        this.columnCount = 10;
-
-        let cells = Array(this.rowCount * this.columnCount).fill(null);
+        let nextDisplayState = this.displayStateCopy();
+        this.fill(nextDisplayState, EMPTY);
 
         // create initial piece
-        this.movingPiece = this.createPiece(cells);
+        this.movingPiece = this.createPiece(nextDisplayState);
 
-        // set initial state
-        this.state = { cells };
+        this.render(nextDisplayState);
 
         this.score = 0;
 
@@ -148,32 +97,27 @@
       }
 
       rotate(direction) {
-        let cells = [...this.state.cells];  // shallow clone
+        let newDisplayState = this.displayStateCopy();
 
         // store new positions of block
         const newPositions = this.calcRotate(direction);
 
-        // TODO: extract this
-        const calcRow = index => Math.floor(index / this.columnCount);
-
         // delete old positions
-        this.movingPiece.indices.forEach(i => { cells[i] = null; });
+        this.movingPiece.position.forEach(({ x: x, y: y }) => { newDisplayState[x][y] = EMPTY; });
 
         // check validity of new position
         for (let i = 0; i < 4; i += 1) {
-          const currentPosition = this.movingPiece.indices[i];
+          const currentPoint = this.movingPiece.position[i];
           const newPosition = newPositions[i];
 
-          // don't allow movement past the edge of the screen
-          // e.g. if any of the new indices are in a different row
-          // TODO: fix this for rotation
-          // if (calcRow(currentPosition) !== calcRow(newPosition)) {
-          //   console.log(`canceling rotation; trying to move off edge of screen`);
-          //   return;
-          // }
+          // don't allow any blocks to move past the edge of the grid
+          // TODO: allow blocks to "push" themselves away from edges when rotating
+          if (newPosition.x < 0 || newPosition.x >= this.columns) {
+            return;
+          }
 
           // don't allow moving into any occupied spaces
-          if (cells[newPosition] !== null) {
+          if (newDisplayState[newPosition.x][newPosition.y] !== EMPTY) {
             console.log(`canceling rotation; trying to move in an occupied space`);
             return;
           }
@@ -182,15 +126,15 @@
         // if we've made it here, it means the new move is valid
 
         // put new blocks in place
-        newPositions.forEach(i => { cells[i] = this.movingPiece.color; })
+        newPositions.forEach(({ x: x, y: y }) => { newDisplayState[x][y] = this.movingPiece.color; })
 
         // save references to the new indexes of the piece
-        this.movingPiece.indices = newPositions;
+        this.movingPiece.position = newPositions;
 
-        // update state
-        this.setState({ cells });
+        this.render(newDisplayState)
       }
 
+      // @return Array of points representing the position of a tetrad
       calcRotate(direction) {
 
         // TODO: refactor this garbage
@@ -199,7 +143,7 @@
           this.movingPiece.rotation = 0;
         }
 
-        let centerIndex = this.movingPiece.indices[0];
+        let center = this.movingPiece.position[0];
 
         switch (this.movingPiece.type) {
           case 'T':
@@ -207,39 +151,39 @@
               // *[*]*
               //   *
               return [
-                centerIndex,
-                centerIndex - 1,
-                centerIndex + 1,
-                centerIndex + this.columnCount
+                center,
+                { x: center.x - 1, y: center.y },
+                { x: center.x + 1, y: center.y },
+                { x: center.x, y: center.y + 1 },
               ];
             } else if (this.movingPiece.rotation === 90) {
               //   *
               // *[*]
               //   *
               return [
-                centerIndex,
-                centerIndex - 1,
-                centerIndex - this.columnCount,
-                centerIndex + this.columnCount
+                center,
+                { x: center.x, y: center.y - 1 },
+                { x: center.x - 1, y: center.y },
+                { x: center.x, y: center.y + 1 },
               ];
             } else if (this.movingPiece.rotation === 180) {
               //   *
               // *[*]*
               return [
-                centerIndex,
-                centerIndex - 1,
-                centerIndex + 1,
-                centerIndex - this.columnCount
+                center,
+                { x: center.x - 1, y: center.y },
+                { x: center.x, y: center.y - 1 },
+                { x: center.x + 1, y: center.y },
               ];
             } else if (this.movingPiece.rotation === 270) {
               //   *
               //  [*]*
               //   *
               return [
-                centerIndex,
-                centerIndex + 1,
-                centerIndex - this.columnCount,
-                centerIndex + this.columnCount
+                center,
+                { x: center.x, y: center.y - 1 },
+                { x: center.x + 1, y: center.y },
+                { x: center.x, y: center.y + 1 },
               ];
             }
             break;
@@ -247,10 +191,10 @@
           case 'O':
             // no-op
             return [
-              centerIndex,
-              centerIndex + 1,
-              centerIndex + this.columnCount,
-              centerIndex + this.columnCount + 1
+              center,
+              { x: center.x, y: center.y + 1 },
+              { x: center.x + 1, y: center.y },
+              { x: center.x + 1, y: center.y + 1 },
             ];
             break;
           case 'S':
@@ -259,20 +203,20 @@
               //  [*]*
               // * *
               return [
-                centerIndex,
-                centerIndex + 1,
-                centerIndex + this.columnCount,
-                centerIndex + this.columnCount - 1
+                center,
+                { x: center.x + 1, y: center.y },
+                { x: center.x, y: center.y + 1 },
+                { x: center.x - 1, y: center.y + 1 },
               ];
             } else {
               //  *
               // [*]*
               //   *
               return [
-                centerIndex,
-                centerIndex - this.columnCount,
-                centerIndex + 1,
-                centerIndex + this.columnCount + 1
+                center,
+                { x: center.x, y: center.y - 1 },
+                { x: center.x + 1, y: center.y },
+                { x: center.x + 1, y: center.y + 1 },
               ];
             }
             break;
@@ -282,20 +226,20 @@
               // *[*]
               //   * *
               return [
-                centerIndex,
-                centerIndex - 1,
-                centerIndex + this.columnCount,
-                centerIndex + this.columnCount + 1
+                center,
+                { x: center.x - 1, y: center.y },
+                { x: center.x, y: center.y + 1 },
+                { x: center.x + 1, y: center.y + 1 },
               ];
             } else {
               //   *
               // *[*]
               // *
               return [
-                centerIndex,
-                centerIndex - this.columnCount,
-                centerIndex - 1,
-                centerIndex + this.columnCount - 1
+                center,
+                { x: center.x, y: center.y - 1 },
+                { x: center.x - 1, y: center.y },
+                { x: center.x - 1, y: center.y + 1 },
               ];
             }
             break;
@@ -304,39 +248,39 @@
               // *[*]*
               // *
               return [
-                centerIndex,
-                centerIndex - 1,
-                centerIndex + 1,
-                centerIndex + this.columnCount - 1
+                center,
+                { x: center.x - 1, y: center.y },
+                { x: center.x - 1, y: center.y + 1 },
+                { x: center.x + 1, y: center.y },
               ];
             } else if (this.movingPiece.rotation === 90) {
               // *
               //[*]
               // * *
               return [
-                centerIndex,
-                centerIndex - this.columnCount,
-                centerIndex + this.columnCount,
-                centerIndex + this.columnCount + 1
+                center,
+                { x: center.x, y: center.y - 1 },
+                { x: center.x, y: center.y + 1 },
+                { x: center.x + 1, y: center.y + 1 },
               ];
             } else if (this.movingPiece.rotation === 180) {
               //     *
               // *[*]*
               return [
-                centerIndex,
-                centerIndex - this.columnCount + 1,
-                centerIndex - 1,
-                centerIndex + 1
+                center,
+                { x: center.x - 1, y: center.y },
+                { x: center.x + 1, y: center.y },
+                { x: center.x + 1, y: center.y + 1 },
               ];
             } else {
               // * *
               //  [*]
               //   *
               return [
-                centerIndex,
-                centerIndex - this.columnCount,
-                centerIndex - this.columnCount - 1,
-                centerIndex + this.columnCount
+                center,
+                { x: center.x, y: center.y - 1 },
+                { x: center.x - 1, y: center.y - 1 },
+                { x: center.x, y: center.y + 1 },
               ];
             }
             break;
@@ -345,39 +289,39 @@
               // *[*]*
               //     *
               return [
-                centerIndex,
-                centerIndex - 1,
-                centerIndex + 1,
-                centerIndex + this.columnCount + 1
+                center,
+                { x: center.x - 1, y: center.y },
+                { x: center.x + 1, y: center.y },
+                { x: center.x + 1, y: center.y + 1 },
               ];
             } else if (this.movingPiece.rotation === 90) {
               //   *
               //  [*]
               // * *
               return [
-                centerIndex,
-                centerIndex - this.columnCount,
-                centerIndex + this.columnCount,
-                centerIndex + this.columnCount - 1
+                center,
+                { x: center.x, y: center.y - 1 },
+                { x: center.x, y: center.y + 1 },
+                { x: center.x - 1, y: center.y + 1 },
               ];
             } else if (this.movingPiece.rotation === 180) {
               // *
               // *[*]*
               return [
-                centerIndex,
-                centerIndex - this.columnCount - 1,
-                centerIndex - 1,
-                centerIndex + 1
+                center,
+                { x: center.x - 1, y: center.y - 1 },
+                { x: center.x - 1, y: center.y },
+                { x: center.x + 1, y: center.y },
               ];
             } else {
               //  * *
               // [*]
               //  *
               return [
-                centerIndex,
-                centerIndex - this.columnCount,
-                centerIndex - this.columnCount + 1,
-                centerIndex + this.columnCount
+                center,
+                { x: center.x, y: center.y - 1 },
+                { x: center.x + 1, y: center.y - 1 },
+                { x: center.x, y: center.y + 1 },
               ];
             }
             break;
@@ -385,10 +329,10 @@
             if (this.movingPiece.rotation % 180 === 0) {
               // *[*]* *
               return [
-                centerIndex,
-                centerIndex - 1,
-                centerIndex + 1,
-                centerIndex + 2
+                center,
+                { x: center.x - 1, y: center.y },
+                { x: center.x + 1, y: center.y },
+                { x: center.x + 2, y: center.y },
               ];
             } else {
               //  *
@@ -396,42 +340,40 @@
               //  *
               //  *
               return [
-                centerIndex,
-                centerIndex - this.columnCount,
-                centerIndex + this.columnCount,
-                centerIndex + this.columnCount * 2
+                center,
+                { x: center.x, y: center.y - 1 },
+                { x: center.x, y: center.y + 1 },
+                { x: center.x, y: center.y + 2 },
               ];
             }
             break;
         }
       }
 
-      // direction is +1 or -1
+      // direction is 1 or -1
       move(direction) {
-        let cells = [...this.state.cells];  // shallow clone
+        let newDisplayState = this.displayStateCopy();
 
         // store new positions of block
-        const newPositions = this.movingPiece.indices.map(i => i + direction);
-
-        // TODO: extract this
-        const calcRow = index => Math.floor(index / this.columnCount);
+        const newPositions = this.movingPiece.position.map(({ x, y }) => {
+          return { x: x + direction, y: y };
+        });
 
         // delete old positions
-        this.movingPiece.indices.forEach(i => { cells[i] = null; })
+        this.movingPiece.position.forEach(({ x, y }) => newDisplayState[x][y] = EMPTY)
 
         // check validity of new position
         for (let i = 0; i < 4; i += 1) {
-          const currentPosition = this.movingPiece.indices[i];
+          const currentPoint = this.movingPiece.position[i];
           const newPosition = newPositions[i];
 
           // don't allow movement past the edge of the screen
-          // e.g. if any of the new indices are in a different row
-          if (calcRow(currentPosition) !== calcRow(newPosition)) {
+          if (newPosition.x < 0 || newPosition.x >= this.columns) {
             return;
           }
 
           // don't allow moving into any occupied spaces
-          if (cells[newPosition] !== null) {
+          if (newDisplayState[newPosition.x][newPosition.y] !== EMPTY) {
             return;
           }
         }
@@ -439,13 +381,13 @@
         // if we've made it here, it means the new move is valid
 
         // put new blocks in place
-        newPositions.forEach(i => { cells[i] = this.movingPiece.color; })
+        newPositions.forEach(({ x, y }) => newDisplayState[x][y] = this.movingPiece.color);
 
         // save references to the new indexes of the piece
-        this.movingPiece.indices = newPositions;
+        this.movingPiece.position = newPositions;
 
         // update state
-        this.setState({ cells });
+        this.render(newDisplayState);
       }
 
       ' '() {
@@ -484,7 +426,10 @@
       // indices of the piece blocks
       createPiece(cells) {
         // Place the new piece at the top of the screen, in the middle of the grid
-        const centerIndex = Math.floor(this.columnCount / 2);
+        const centerPoint = {
+          x: Math.floor(this.columns / 2),
+          y: 0
+        };
 
         const shapes = ['O', 'S', 'Z', 'T', 'L', 'J', 'I'];
 
@@ -496,22 +441,22 @@
         // change to accept args instead
         this.movingPiece = {
           rotation: 270,
-          indices: [centerIndex],
+          position: [centerPoint],
           type: shapeType
         };
 
-        let shapeIndices = this.calcRotate(1);
+        let shapePoints = this.calcRotate(1);
 
         // `cantPlace` means that there's garbage where the piece should
         // spawn, and basically you lose the game
         let cantPlace = false;
 
-        shapeIndices.forEach(i => {
-          if (cells[i] !== null) {
+        shapePoints.forEach(({ x: x, y: y }) => {
+          if (cells[x][y] !== EMPTY) {
             cantPlace = true;
           }
 
-          cells[i] = color;
+          cells[x][y] = color;
         });
 
         if (cantPlace) {
@@ -519,7 +464,7 @@
         }
 
         return {
-          indices: shapeIndices,
+          position: shapePoints,
           type: shapeType,
           rotation: 0,
           color: color
@@ -590,29 +535,31 @@
 
         this.previousTime = now;
 
-        const cells = [...this.state.cells]; // shallow clone
+        const nextDisplayState = this.displayStateCopy();
 
         // store new positions of moving block
-        const newPositions = this.movingPiece.indices.map(i => i + this.columnCount);
+        const newPositions = this.movingPiece.position.map(point => {
+          return { x: point.x, y: point.y + 1 }
+        });
 
         // delete old positions
-        this.movingPiece.indices.forEach(i => { cells[i] = null; })
+        this.movingPiece.position.forEach(({ x: x, y: y }) => nextDisplayState[x][y] = null)
 
         // check validity of all new positions
         for (let i = 0; i < 4; i += 1) {
+          let point = newPositions[i];
           // if block would move off the bottom, or would move DOWN into a non-empty square...
-          if (newPositions[i] > cells.length - 1 || cells[newPositions[i]] !== null) {
+          if (point.y >= this.rows || nextDisplayState[point.x][point.y] !== null) {
             // mark all pieces of the moving block as "stopped"
-            this.movingPiece.indices.forEach(i => cells[i] = 0);
+            this.movingPiece.position.forEach(({ x: x, y: y }) => nextDisplayState[x][y] = 0);
 
             // TODO: cells (passed by reference) is mutated
-            this.clearRows(cells);
+            this.clearRows(nextDisplayState);
 
             // TODO: cells (passed by reference) is mutated
-            this.movingPiece = this.createPiece(cells);
+            this.movingPiece = this.createPiece(nextDisplayState);
 
-            // update state
-            this.setState({ cells });
+            this.render(nextDisplayState);
 
             // if piece can't be placed, game over!
             if (this.movingPiece === false) {
@@ -623,60 +570,28 @@
           }
         }
 
-        // put new blocks in place
-        newPositions.forEach(i => { cells[i] = this.movingPiece.color; })
+        // put blocks in place in new position
+        newPositions.forEach(({ x: x, y: y }) => { nextDisplayState[x][y] = this.movingPiece.color; })
 
-        // save references to the new indexes of the piece
-        this.movingPiece.indices = newPositions;
+        // save references to the new position of the piece
+        this.movingPiece.position = newPositions;
 
         // update state
-        this.setState({ cells });
+        this.render(nextDisplayState)
       }
 
       gameOver() {
         clearInterval(this.interval);
         console.log('u lose!');
       }
-
-      render() {
-        return html`<div class="game">
-              <${Board} cells=${this.state.cells} onClick=${this.onClick} />
-          </div>`;
-      }
     };
 
-    const Board = props => {
-      // TODO: move this to be accessible somewhere else?
-      const colorMap = {
-        0: 'grey',
-        1: 'red',
-        2: 'blue',
-        3: 'yellow',
-        4: 'green',
-        5: 'purple',
-        6: 'orange',
-        null: ''
-      };
-
-      return html`<section class="board">
-                    ${props.cells.map((value, index) => html`
-                        <${Cell} color=${colorMap[value]}
-                                 index=${index} />
-                    `)}
-                </section>`;
-    };
-
-    const Cell = props => {
-      return html`<div class="cell ${props.color}"
-                       data-index=${props.index} />`;
-    };
-
-    render(html`<${Game} />`, document.body);
+    new Game();
   </script>
 </head>
 
 <body>
-
+  <section id="grid"></section>
 </body>
 
 </html>
