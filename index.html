@@ -34,6 +34,18 @@
       background-color: grey;
     }
 
+    .cell.yellow {
+      background-color: yellow;
+    }
+
+    .cell.purple {
+      background-color: purple;
+    }
+
+    .cell.orange {
+      background-color: orange;
+    }
+
     /* TODO: can we add css transitions that "slide" the background from top to bottom,
     to give the illusion of smooth animation?
     TODO: can we give blocks that stop moving a "bump" animation? e.g. it moves past it's
@@ -198,26 +210,87 @@
       // populate `this.cells` with a tetrad, and return the
       // indices of the piece blocks
       createPiece(cells) {
-        // TODO: should this be hard-coded
+        // TODO: should this be hard-coded?
         const centerIndex = 15;
 
-        // TODO: dynamically populate this list based on the type of tetrad we want
+        const shapes = {
+          //  *
+          // **
+          //  *
+          0: [
+            centerIndex,
+            centerIndex - 1,
+            centerIndex - this.columnCount,
+            centerIndex + this.columnCount
+          ],
 
-        //  *
-        // **
-        //  *
-        const indices = [
-          centerIndex,
-          centerIndex - 1,
-          centerIndex - this.columnCount,
-          centerIndex + this.columnCount
-        ];
+          // **
+          // **
+          1: [
+            centerIndex,
+            centerIndex + 1,
+            centerIndex + this.columnCount,
+            centerIndex + this.columnCount + 1
+          ],
 
-        indices.forEach(i => {
-          cells[i] = 1; // red
+          // **
+          //  **
+          2: [
+            centerIndex,
+            centerIndex - 1,
+            centerIndex + this.columnCount,
+            centerIndex + this.columnCount + 1
+          ],
+
+          //  **
+          // **
+          3: [
+            centerIndex,
+            centerIndex + 1,
+            centerIndex + this.columnCount,
+            centerIndex + this.columnCount - 1
+          ],
+
+          // *
+          // *
+          // **
+          4: [
+            centerIndex,
+            centerIndex - this.columnCount,
+            centerIndex + this.columnCount,
+            centerIndex + this.columnCount + 1
+          ],
+
+          //  *
+          //  *
+          // **
+          5: [
+            centerIndex,
+            centerIndex - this.columnCount,
+            centerIndex + this.columnCount,
+            centerIndex + this.columnCount - 1
+          ],
+
+          // *
+          // *
+          // *
+          // *
+          6: [
+            centerIndex,
+            centerIndex - this.columnCount,
+            centerIndex + this.columnCount,
+            centerIndex + this.columnCount * 2
+          ]
+        };
+
+        let randomShape = shapes[Math.floor(Math.random() * 7)]
+        let randomColor = Math.floor(Math.random() * 6) + 1;
+
+        randomShape.forEach(i => {
+          cells[i] = randomColor;
         });
 
-        return indices;
+        return randomShape;
       }
 
       clearRows(cells) {
@@ -257,12 +330,13 @@
       }
 
       update() {
-        // return;
-
         const cells = [...this.state.cells]; // shallow clone
 
         // store new positions of moving block
         const newPositions = this.movingPiece.map(i => i + this.columnCount);
+
+        // TODO: check for lose condition; perhaps if piece is spawned on top of
+        // an existing filled block
 
         // persist the color of the piece
         // TODO: rename `movingPiece` to `movingPieceIndexes` or similar
@@ -270,8 +344,6 @@
 
         // delete old positions
         this.movingPiece.forEach(i => { cells[i] = null; })
-
-        // console.log(`new positions`, newPositions);
 
         // check validity of all new positions
         for (let i = 0; i < 4; i += 1) {
