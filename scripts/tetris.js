@@ -1,6 +1,6 @@
-/* 
-TODO: 
- 
+/*
+TODO:
+
 - [ ] display score
 - [ ] show upcoming piece
 - [ ] offline support (https://diveinto.html5doctor.com/offline.html)
@@ -36,8 +36,17 @@ class Game extends Grid {
         let nextDisplayState = this.displayStateCopy();
         this.fill(nextDisplayState, EMPTY);
 
+        // get references to DOM elements representing upcoming pieces
+        this.nextPieceElements = document.querySelectorAll('#next div')
+
+        // create/fill queue for upcoming pieces
+        this.pieceQueue = [];
+        this.fillPieceQueue();
+
         // create initial piece
         this.movingPiece = this.createPiece(nextDisplayState);
+
+        // TODO: update the display of "next" pieces
 
         this.render(nextDisplayState);
 
@@ -109,7 +118,6 @@ class Game extends Grid {
 
         const center = this.movingPiece.position[0];
 
-
         // if touching the moving piece, then rotate
         if (Math.abs(clicked.x - center.x) < 2 && Math.abs(clicked.y - center.y) < 2) {
             this.rotate(1);
@@ -120,18 +128,20 @@ class Game extends Grid {
             // if touching to the right, move to the right
             this.ArrowRight()
         }
+
+        // TODO: change this to "swipe" type controls; you can't tap on the side of a pice if it's too near the edge of the grid
     }
 
     onTouchEnd(event) {
         event.preventDefault();
 
         // store local ref to last touch
-        const endTouch = e.changedTouches[0];
+        const endTouch = event.changedTouches[0];
 
         let xDiff = endTouch.clientX - this.currentTouch.clientX;
         let yDiff = endTouch.clientY - this.currentTouch.clientY;
 
-        // if 
+        // TODO: do we need this function?
     }
 
     rotate(direction) {
@@ -456,6 +466,21 @@ class Game extends Grid {
         }
     }
 
+    fillPieceQueue() {
+        const shapes = ['O', 'S', 'Z', 'T', 'L', 'J', 'I'];
+
+        while (this.pieceQueue.length < this.nextPieceElements.length) {
+            const type = shapes[Math.floor(Math.random() * shapes.length)]
+            const color = Math.floor(Math.random() * 6) + 1;
+
+            this.pieceQueue.push({type, color})
+        }
+
+        this.nextPieceElements.forEach((node, i) => {
+            node.classList = this.pieceQueue[i].type;
+        });
+    }
+
     // given a specific index to center the piece around,
     // populate `this.cells` with a tetrad, and return the
     // indices of the piece blocks
@@ -466,18 +491,18 @@ class Game extends Grid {
             y: 0
         };
 
-        const shapes = ['O', 'S', 'Z', 'T', 'L', 'J', 'I'];
+        // pop a piece off the next queue
+        const piece = this.pieceQueue.shift();
 
-        let shapeType = shapes[Math.floor(Math.random() * shapes.length)]
-
-        let color = Math.floor(Math.random() * 6) + 1;
+        // refill the queue
+        this.fillPieceQueue();
 
         // TODO: `calcRotate` inspects state of the piece;
         // change to accept args instead
         this.movingPiece = {
             rotation: 270,
             position: [centerPoint],
-            type: shapeType
+            type: piece.type
         };
 
         let shapePoints = this.calcRotate(1);
@@ -491,7 +516,7 @@ class Game extends Grid {
                 cantPlace = true;
             }
 
-            cells[x][y] = color;
+            cells[x][y] = piece.color;
         });
 
         if (cantPlace) {
@@ -500,9 +525,9 @@ class Game extends Grid {
 
         return {
             position: shapePoints,
-            type: shapeType,
+            type: piece.type,
             rotation: 0,
-            color: color
+            color: piece.color
         };
     }
 
