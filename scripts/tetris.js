@@ -1,19 +1,15 @@
 /*
 TODO:
-
-- [ ] display score
-- [ ] show upcoming piece
+- [x] separate index/game pages
+- [ ] set up game "level", which increases speed of falling tetrads
 - [ ] offline support (https://diveinto.html5doctor.com/offline.html)
-- [x] make down arrow instantly drop piece, but allow for quick movement
-      before the piece locks in place
-- [ ] allow pieces to "bump" themselves away from sides when rotating
-  * (? does GB tetris do this?)
-- [ ] determine canonical # of rows/cols (steal from GB - 10 rows, 18 cols/NES tetris - 10 rows, 20 cols)
-- [ ] Make bg image
-- [ ] buttons for left/right/down/rotate on mobile? or tap controls?
+- [ ] swipe controls for mobile
 */
 
 const EMPTY = null;
+const TRASH = 0;
+const DEFAULT_SPEED = 500;
+const FAST_SPEED = 50;
 
 class Game extends Grid {
     cssClassMap = {
@@ -36,21 +32,31 @@ class Game extends Grid {
         let nextDisplayState = this.displayStateCopy();
         this.fill(nextDisplayState, EMPTY);
 
-        // get references to DOM elements representing upcoming pieces
-        this.nextPieceElements = document.querySelectorAll('#next div')
+        // get query params to determine "height" garbage
+        const urlParams = new URLSearchParams(window.location.search);
+        const height = parseInt(urlParams.get('height'), 10);
+
+        if (height > 0) {
+            // randomly fill the bottom "x" rows with garbage
+            for (let y = this.rows - 1; y > this.rows - height - 1; y -= 1) {
+                for (let x = 0; x < this.columns - 1; x += 1) {
+                    nextDisplayState[x][y] = Math.random() > 0.5 ? TRASH : EMPTY;
+                }
+            }
+        }
 
         // create/fill queue for upcoming pieces
+        // NOTE: could eventually display upcoming pieces
         this.pieceQueue = [];
         this.fillPieceQueue();
 
         // create initial piece
         this.movingPiece = this.createPiece(nextDisplayState);
 
-        // TODO: update the display of "next" pieces
-
         this.render(nextDisplayState);
 
         this.score = 0;
+        this.lines = 0;
 
         // bind global keyboard handlers
         window.addEventListener('keydown', this.onKeyDown.bind(this));
@@ -61,9 +67,9 @@ class Game extends Grid {
         window.addEventListener('touchend', this.onTouchEnd.bind(this));
 
         // update loop
-        this.interval = setInterval(this.update.bind(this), 100);
+        this.interval = setInterval(this.update.bind(this), 50);
         this.previousTime = performance.now();
-        this.updateSpeedInMs = 500;
+        this.updateSpeedInMs = DEFAULT_SPEED;
     }
 
     ArrowLeft() {
@@ -78,10 +84,17 @@ class Game extends Grid {
         this.rotate(1);
     }
 
+    x() {
+        this.rotate(-1);
+    }
+
+    z() {
+        this.rotate(1);
+    }
+
     ArrowDown() {
         // Allow the game to update faster if the player holds the "down" key
-        // TODO: extract this magic number
-        this.updateSpeedInMs = 75;
+        this.updateSpeedInMs = FAST_SPEED;
     }
 
     onKeyDown(event) {
@@ -100,48 +113,39 @@ class Game extends Grid {
         if (event.key === 'ArrowDown') {
             event.preventDefault()
 
-            // TODO: extract this magic number
-            this.updateSpeedInMs = 500;
+            this.updateSpeedInMs = DEFAULT_SPEED;
         }
     }
 
     onTouchStart(event) {
-        event.preventDefault();
-
         // store where the player first touched the screen
         this.currentTouch = event.changedTouches[0];  // only care about the first touch
-
-        const clicked = {
-            x: parseInt(event.target.dataset.x, 10),
-            y: parseInt(event.target.dataset.y, 10)
-        };
-
-        const center = this.movingPiece.position[0];
-
-        // if touching the moving piece, then rotate
-        if (Math.abs(clicked.x - center.x) < 2 && Math.abs(clicked.y - center.y) < 2) {
-            this.rotate(1);
-        } else if (clicked.x < center.x) {
-            // if touching to the left, move to the left
-            this.ArrowLeft();
-        } else if (clicked.x > center.x) {
-            // if touching to the right, move to the right
-            this.ArrowRight()
-        }
-
-        // TODO: change this to "swipe" type controls; you can't tap on the side of a pice if it's too near the edge of the grid
     }
 
     onTouchEnd(event) {
-        event.preventDefault();
-
         // store local ref to last touch
         const endTouch = event.changedTouches[0];
 
         let xDiff = endTouch.clientX - this.currentTouch.clientX;
         let yDiff = endTouch.clientY - this.currentTouch.clientY;
 
-        // TODO: do we need this function?
+        // if player just tapped without swiping a direction
+        if (Math.abs(xDiff) + Math.abs(yDiff) < 10) {
+            this.ArrowUp();
+
+        // player moved their finger horizontally more than vertically
+        } else if (Math.abs(xDiff) > Math.abs(yDiff)) {
+            // user moved their finger (mostly) right
+            if (xDiff > 0) {
+                this.ArrowRight();
+            } else {
+                this.ArrowLeft();
+            }
+        // user moved their finger (mostly) down
+        } else if (yDiff > 0) {
+            // TODO: make this drop tetrad instantly
+            this.ArrowDown();
+        }
     }
 
     rotate(direction) {
@@ -182,6 +186,7 @@ class Game extends Grid {
             // don't allow moving into any occupied spaces
             if (newDisplayState[newPosition.x][newPosition.y] !== EMPTY) {
                 console.log(`canceling rotation; trying to move in an occupied space`);
+                // TODO: revert the rotation angle on the moving piece
                 return;
             }
         }
@@ -194,16 +199,20 @@ class Game extends Grid {
         // save references to the new indexes of the piece
         this.movingPiece.position = newPositions;
 
+        // update state; called here rather than waiting for `update()` so that rotation is instantaneous
         this.render(newDisplayState)
     }
 
     // @return Array of points representing the position of a tetrad
     calcRotate(direction) {
-
         // TODO: refactor this garbage
         this.movingPiece.rotation += 90 * direction;
         if (this.movingPiece.rotation === 360) {
             this.movingPiece.rotation = 0;
+        }
+
+        if (this.movingPiece.rotation === -90) {
+            this.movingPiece.rotation = 270;
         }
 
         let center = this.movingPiece.position[0];
@@ -449,36 +458,19 @@ class Game extends Grid {
         // save references to the new indexes of the piece
         this.movingPiece.position = newPositions;
 
-        // update state
+        // update state; called here rather than waiting for `update()` so that movement is instantaneous
         this.render(newDisplayState);
-    }
-
-    ' '() {
-        // console.log('lol space');
-
-        // DEBUG
-        this.dumpState()
-    }
-
-    dumpState() {
-        for (let row = 0; row < this.rowCount; row += 1) {
-            console.log(this.state.cells.slice(row * this.columnCount, row * this.columnCount + this.columnCount))
-        }
     }
 
     fillPieceQueue() {
         const shapes = ['O', 'S', 'Z', 'T', 'L', 'J', 'I'];
 
-        while (this.pieceQueue.length < this.nextPieceElements.length) {
+        while (this.pieceQueue.length < 5) {
             const type = shapes[Math.floor(Math.random() * shapes.length)]
             const color = Math.floor(Math.random() * 6) + 1;
 
             this.pieceQueue.push({type, color})
         }
-
-        this.nextPieceElements.forEach((node, i) => {
-            node.classList = this.pieceQueue[i].type;
-        });
     }
 
     // given a specific index to center the piece around,
@@ -554,7 +546,6 @@ class Game extends Grid {
 
             if (clear === true) {
                 clearCount += 1;
-                console.log(`line ${y} cleared!`);
 
                 // Remove the filled line, and "push" the entire grid downwards
                 for (let x = 0; x < this.columns; x += 1) {
@@ -563,6 +554,8 @@ class Game extends Grid {
                 }
             }
         }
+
+        this.lines += clearCount;
 
         switch (clearCount) {
             case 1:
@@ -582,7 +575,8 @@ class Game extends Grid {
                 break;
         }
 
-        console.log(`Score: ${this.score}`);
+        document.querySelector('#score').textContent = `Score: ${this.score}`;
+        document.querySelector('#lines').textContent = `Lines: ${this.lines}`;
     }
 
     update() {
@@ -618,12 +612,14 @@ class Game extends Grid {
                 // TODO: cells (passed by reference) is mutated
                 this.movingPiece = this.createPiece(nextDisplayState);
 
-                this.render(nextDisplayState);
+                // NOTE: `createPiece` will still fill in squares in the grid, but won't return a reference to them
 
                 // if piece can't be placed, game over!
                 if (this.movingPiece === false) {
                     this.gameOver();
                 }
+
+                this.render(nextDisplayState);
 
                 return;
             }
@@ -641,6 +637,14 @@ class Game extends Grid {
 
     gameOver() {
         clearInterval(this.interval);
-        console.log('u lose!');
+
+        // display "game over" text
+        document.querySelector('#game_over').style = 'display: block;';
+
+        document.querySelector('#back').addEventListener('click', e => {
+            window.location = 'index.html';
+        });
+
+        // TODO: "brick up" the game area
     }
 };
