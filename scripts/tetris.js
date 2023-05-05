@@ -7,7 +7,7 @@ TODO:
 */
 
 const EMPTY = null;
-const TRASH = 0;
+const DROPPED = 0;
 const DEFAULT_SPEED = 500;
 const FAST_SPEED = 50;
 
@@ -40,7 +40,7 @@ class Game extends Grid {
             // randomly fill the bottom "x" rows with garbage
             for (let y = this.rows - 1; y > this.rows - height - 1; y -= 1) {
                 for (let x = 0; x < this.columns - 1; x += 1) {
-                    nextDisplayState[x][y] = Math.random() > 0.5 ? TRASH : EMPTY;
+                    nextDisplayState[x][y] = Math.random() > 0.5 ? DROPPED : EMPTY;
                 }
             }
         }
@@ -143,8 +143,8 @@ class Game extends Grid {
             }
         // user moved their finger (mostly) down
         } else if (yDiff > 0) {
-            // TODO: make this drop tetrad instantly
-            this.ArrowDown();
+            // drop tetrad instantly
+            while (this.fall()) {}
         }
     }
 
@@ -579,6 +579,43 @@ class Game extends Grid {
         document.querySelector('#lines').textContent = `Lines: ${this.lines}`;
     }
 
+    fall() {
+        const nextDisplayState = this.displayStateCopy();
+
+        // store new positions of moving block
+        const newPositions = this.movingPiece.position.map(({x, y}) => {
+            return { x, y: y + 1 };
+        });
+
+        // delete old positions
+        this.movingPiece.position.forEach(({ x, y }) => nextDisplayState[x][y] = EMPTY);
+
+        // check validity of all new positions
+        for (let i = 0; i < 4; i += 1) {
+            let {x, y} = newPositions[i];
+
+            // if block would fall off the bottom, _or_ would move down into a non-empty square,
+            // it can't be moved further
+            if (y >= this.rows || nextDisplayState[x][y] !== EMPTY) {
+                // return the block to its original place
+                this.movingPiece.position.forEach(({ x, y }) => nextDisplayState[x][y] = this.movingPiece.color);
+
+                return false;
+            }
+        }
+
+        // put blocks in place in new position
+        newPositions.forEach(({ x, y }) => { nextDisplayState[x][y] = this.movingPiece.color; })
+
+        // save references to the new position of the piece
+        this.movingPiece.position = newPositions;
+
+        // update the UI
+        this.render(nextDisplayState);
+
+        return true;
+    }
+
     update() {
         const now = performance.now();
 
@@ -588,51 +625,28 @@ class Game extends Grid {
 
         this.previousTime = now;
 
-        const nextDisplayState = this.displayStateCopy();
+        if (this.fall() === false) {
+            const nextDisplayState = this.displayStateCopy();
 
-        // store new positions of moving block
-        const newPositions = this.movingPiece.position.map(point => {
-            return { x: point.x, y: point.y + 1 }
-        });
+            // mark all pieces of the moving block as "dropped"
+            this.movingPiece.position.forEach(({ x: x, y: y }) => nextDisplayState[x][y] = DROPPED);
 
-        // delete old positions
-        this.movingPiece.position.forEach(({ x: x, y: y }) => nextDisplayState[x][y] = null)
+            // TODO: cells (passed by reference) is mutated
+            this.clearRows(nextDisplayState);
 
-        // check validity of all new positions
-        for (let i = 0; i < 4; i += 1) {
-            let point = newPositions[i];
-            // if block would move off the bottom, or would move DOWN into a non-empty square...
-            if (point.y >= this.rows || nextDisplayState[point.x][point.y] !== null) {
-                // mark all pieces of the moving block as "stopped"
-                this.movingPiece.position.forEach(({ x: x, y: y }) => nextDisplayState[x][y] = 0);
+            // TODO: cells (passed by reference) is mutated
+            this.movingPiece = this.createPiece(nextDisplayState);
 
-                // TODO: cells (passed by reference) is mutated
-                this.clearRows(nextDisplayState);
+            // NOTE: `createPiece` will still fill in squares in the grid, but won't return a reference to them
+            // if they overlap with another block
 
-                // TODO: cells (passed by reference) is mutated
-                this.movingPiece = this.createPiece(nextDisplayState);
-
-                // NOTE: `createPiece` will still fill in squares in the grid, but won't return a reference to them
-
-                // if piece can't be placed, game over!
-                if (this.movingPiece === false) {
-                    this.gameOver();
-                }
-
-                this.render(nextDisplayState);
-
-                return;
+            // if piece can't be placed, game over!
+            if (this.movingPiece === false) {
+                this.gameOver();
             }
+
+            this.render(nextDisplayState);
         }
-
-        // put blocks in place in new position
-        newPositions.forEach(({ x: x, y: y }) => { nextDisplayState[x][y] = this.movingPiece.color; })
-
-        // save references to the new position of the piece
-        this.movingPiece.position = newPositions;
-
-        // update state
-        this.render(nextDisplayState)
     }
 
     gameOver() {
