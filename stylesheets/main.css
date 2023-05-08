@@ -55,10 +55,12 @@ button#back { font-size: 2.5rem; }
     position: relative;
     touch-action: manipulation;
     background-color: white;
+    height: 100%;
     max-height: 100%;
     border: 1px solid black;
     border-right: none;
     border-bottom: none;
+    box-sizing: border-box;
 }
 
 #grid div {
